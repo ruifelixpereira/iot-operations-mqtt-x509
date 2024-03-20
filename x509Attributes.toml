@@ -1,0 +1,18 @@
+[root]
+subject = "O=MqttAppSamplesCA,CN=MqttAppSamplesCA Root CA"
+
+[root.attributes]
+organization = "contoso"
+
+[intermediate]
+subject = "O=MqttAppSamplesCA,CN=MqttAppSamplesCA Intermediate CA"
+
+[intermediate.attributes]
+city = "seattle"
+foo = "bar"
+
+[smart-fan]
+subject = "CN = smart-fan"
+
+[smart-fan.attributes]
+building = "17"
