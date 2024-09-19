@@ -17,7 +17,7 @@ kubectl get broker broker -n azure-iot-operations -o yaml
 A listener corresponds to a network endpoint that exposes the broker to the network. Each listener can have its own authentication and authorization rules that define who can connect to the listener and what actions they can perform on the broker. You can use BrokerAuthentication and BrokerAuthorization resources to specify the access control policies for each listener. 
 
 ```bash
-k get svc -n azure-iot-operations
+kubectl get svc -n azure-iot-operations
 ```
 
 ![alt text](docs/assets/image.png) 
@@ -119,6 +119,14 @@ step certificate inspect ca/certs/intermediate_ca.crt
 step certificate inspect foo.crt
 ```
 
+In alternative you can also use the `openssl` command:
+
+```bash
+openssl x509 -in ca/certs/root_ca.crt -text -noout
+openssl x509 -in ca/certs/intermediate_ca.crt -text -noout
+openssl x509 -in foo.crt -text -noout
+```
+
 Use this information to create file `x509Attributes.toml`.
 
 Create the secret:
@@ -127,9 +135,9 @@ Create the secret:
 kubectl create secret generic x509-attributes --from-file=x509Attributes.toml -n azure-iot-operations
 ```
 
-### Step 7. Check the BrokerListerner with TLS and authentication
+### Step 7. Check the BrokerListener with TLS and authentication
 
-Check that the default BrokerListerner is tLS enabled and authentication is also enabled:
+Check that the default BrokerListener is TLS enabled and authentication is also enabled:
 
 ```bash
 kubectl get brokerlistener listener -n azure-iot-operations -o yaml
@@ -210,7 +218,13 @@ Open another shell into the pod:
 kubectl exec --stdin --tty mqtt-client -n azure-iot-operations -- sh
 ```
 
-And run the `mqttui` tool to check the published messages:
+And run the `mosquitto_sub` tool to check the published messages:
+
+```bash
+mosquitto_sub -t hello -d -V mqttv5 -h aio-mq-dmqtt-frontend -p 8883 --cert /tmp/foo.crt --key /tmp/foo.key --cafile /tmp/chain_server_client.pem
+```
+
+You can also use the `mqttui` tool to check the published messages:
 
 ```bash
 mqttui -b mqtts://aio-mq-dmqtt-frontend:8883 -u '$sat' --password $(cat /var/run/secrets/tokens/mq-sat) --insecure
@@ -260,3 +274,8 @@ You can also use Port forwarding like describe [here](https://learn.microsoft.co
 ### Step 13. Test with a nodejs sample client
 
 Just use sample in folder `node-app-test-client`.
+
+
+## Broker Listerer TLS manual configuration
+
+In case you need to replace the by default certificate used by TLS that only includes the cluster IP and the node IP, with a certificate that includes the DNS name of the broker and can also include a public IP if needed, you can follow these [steps](docs/tls-manual.md).
