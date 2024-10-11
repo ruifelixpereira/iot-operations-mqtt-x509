@@ -1,11 +1,46 @@
-apiVersion: mq.iotoperations.azure.com/v1beta1
+apiVersion: mqttbroker.iotoperations.azure.com/v1beta1
 kind: BrokerAuthentication
 metadata:
-  name: authn
+  annotations:
+    kubectl.kubernetes.io/last-applied-configuration: |
+      {"apiVersion":"mqttbroker.iotoperations.azure.com/v1beta1","kind":"BrokerAuthentication","metadata":{"annotations":{"management.azure.com/apiVersion":"2024-08-15-preview","management.azure.com/bridgeLocation":"WestUS3","management.azure.com/cloudEnvironment":"AzureCloud","management.azure.com/correlationId":"9e1fa896-6264-47c3-ba6c-8e532c3046c1","management.azure.com/customLocation":"/subscriptions/05e06692-cc6a-4772-81a3-89cd2b429bbe/resourceGroups/iot-lab/providers/Microsoft.ExtendedLocation/customLocations/aio-cl","management.azure.com/location":"westus","management.azure.com/operationId":"4915c8e3-68c2-4b29-bef7-94198ea55264*AA9B99407FE976DEA0A159F5CA485556080BE0DD799769C8C445F7CF526E04A7","management.azure.com/parentResourceId":"/subscriptions/05e06692-cc6a-4772-81a3-89cd2b429bbe/resourceGroups/iot-lab/providers/Microsoft.IoTOperations/instances/aio-ops-instance/brokers/default","management.azure.com/resourceId":"/subscriptions/05e06692-cc6a-4772-81a3-89cd2b429bbe/resourceGroups/iot-lab/providers/Microsoft.IoTOperations/instances/aio-ops-instance/brokers/default/authentications/default","management.azure.com/systemData":"{\"createdBy\":\"e57e778c-2ddf-4a99-9844-4fa00c39c6d7\",\"createdByType\":\"User\",\"createdAt\":\"2024-10-09T07:14:51.5006981Z\",\"resourceUID\":\"f12ea6b0-8c1e-4b40-a818-eaa0cf1e4f92\",\"clientLocation\":\"ukwest\"}","management.azure.com/tenantId":"16b3c013-d300-468d-ac64-7eda0820b6d3","traceparent":"00-208f14110639a7885f5de43be3d66608-95d430fa47f963d9-01"},"creationTimestamp":"2024-10-09T07:14:54Z","finalizers":["brokerauthentication.mqttbroker.iotoperations.azure.com"],"generation":1,"name":"default","namespace":"azure-iot-operations","ownerReferences":[{"apiVersion":"mqttbroker.iotoperations.azure.com/v1beta1","kind":"Broker","name":"default","uid":"eccec9dd-955c-4174-97ff-a6464385943d"}],"resourceVersion":"10115","uid":"05c11fd9-9c6b-464b-96c0-06c596a5edc8"},"spec":{"authenticationMethods":[{"method":"ServiceAccountToken","serviceAccountTokenSettings":{"audiences":["aio-internal"]}},{"method":"X509","x509Settings":{"trustedClientCaCert":"client-ca"}}]},"status":{"provisioningStatus":{"operationId":"4915c8e3-68c2-4b29-bef7-94198ea55264*AA9B99407FE976DEA0A159F5CA485556080BE0DD799769C8C445F7CF526E04A7","output":{"message":"BrokerAuthentication created successfully"},"status":"Succeeded"}}}
+    management.azure.com/apiVersion: 2024-08-15-preview
+    management.azure.com/bridgeLocation: WestUS3
+    management.azure.com/cloudEnvironment: AzureCloud
+    management.azure.com/correlationId: 9e1fa896-6264-47c3-ba6c-8e532c3046c1
+    management.azure.com/customLocation: /subscriptions/05e06692-cc6a-4772-81a3-89cd2b429bbe/resourceGroups/iot-lab/providers/Microsoft.ExtendedLocation/customLocations/aio-cl
+    management.azure.com/location: westus
+    management.azure.com/operationId: 4915c8e3-68c2-4b29-bef7-94198ea55264*AA9B99407FE976DEA0A159F5CA485556080BE0DD799769C8C445F7CF526E04A7
+    management.azure.com/parentResourceId: /subscriptions/05e06692-cc6a-4772-81a3-89cd2b429bbe/resourceGroups/iot-lab/providers/Microsoft.IoTOperations/instances/aio-ops-instance/brokers/default
+    management.azure.com/resourceId: /subscriptions/05e06692-cc6a-4772-81a3-89cd2b429bbe/resourceGroups/iot-lab/providers/Microsoft.IoTOperations/instances/aio-ops-instance/brokers/default/authentications/default
+    management.azure.com/systemData: '{"createdBy":"e57e778c-2ddf-4a99-9844-4fa00c39c6d7","createdByType":"User","createdAt":"2024-10-09T07:14:51.5006981Z","resourceUID":"f12ea6b0-8c1e-4b40-a818-eaa0cf1e4f92","clientLocation":"ukwest"}'
+    management.azure.com/tenantId: 16b3c013-d300-468d-ac64-7eda0820b6d3
+    traceparent: 00-208f14110639a7885f5de43be3d66608-95d430fa47f963d9-01
+  creationTimestamp: "2024-10-09T07:14:54Z"
+  finalizers:
+  - brokerauthentication.mqttbroker.iotoperations.azure.com
+  generation: 2
+  name: default
   namespace: azure-iot-operations
+  ownerReferences:
+  - apiVersion: mqttbroker.iotoperations.azure.com/v1beta1
+    kind: Broker
+    name: default
+    uid: eccec9dd-955c-4174-97ff-a6464385943d
+  resourceVersion: "481769"
+  uid: 05c11fd9-9c6b-464b-96c0-06c596a5edc8
 spec:
-  listenerRef:
-    - listener
   authenticationMethods:
-    - sat:
-        audiences: ["aio-mq"]
+  - method: ServiceAccountToken
+    serviceAccountTokenSettings:
+      audiences:
+      - aio-internal
+  - method: X509
+    x509Settings:
+      trustedClientCaCert: client-ca
+status:
+  provisioningStatus:
+    operationId: 4915c8e3-68c2-4b29-bef7-94198ea55264*AA9B99407FE976DEA0A159F5CA485556080BE0DD799769C8C445F7CF526E04A7
+    output:
+      message: BrokerAuthentication created successfully
+    status: Succeeded

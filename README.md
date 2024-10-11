@@ -1,34 +1,51 @@
-# MQTT with X-509 auth test
+# Azure IoT Operations MQTT Broker with X-509 authentication Lab
+
+This lab aims to configure the Azure IoT Operations MQTT Broker with X.509 authentication. It's updated to address version 0.7.31 of the Azure IoT Operations Preview.
 
 References:
-- https://learn.microsoft.com/en-us/azure/iot-operations/manage-mqtt-connectivity/overview-iot-mq
+- https://learn.microsoft.com/en-us/azure/iot-operations/manage-mqtt-broker/howto-configure-authentication
 
 
 ## Concepts
 
 ### Broker
 
+Check the existing broker.
+
 ```bash
-kubectl get broker broker -n azure-iot-operations -o yaml
+kubectl get broker default -n azure-iot-operations -o yaml
 ```
 
 ## Listener
 
 A listener corresponds to a network endpoint that exposes the broker to the network. Each listener can have its own authentication and authorization rules that define who can connect to the listener and what actions they can perform on the broker. You can use BrokerAuthentication and BrokerAuthorization resources to specify the access control policies for each listener. 
 
+You can check the services being exposed, including the default `aio-broker` service:
+
 ```bash
 kubectl get svc -n azure-iot-operations
 ```
 
-![alt text](docs/assets/image.png) 
+![alt text](docs/assets/svc.png)
+
+Check the default listener:
 
 ```bash
-kubectl get brokerlistener listener -n azure-iot-operations -o yaml
+kubectl get brokerlistener default -n azure-iot-operations -o yaml
 ```
 
-### Server certificate
+![alt text](docs/assets/listener.png)
 
-With automatic certificate management, you use cert-manager to manage the TLS server certificate. By default, cert-manager is installed alongside Azure IoT Operations Preview in the azure-iot-operations namespace already. 
+It's using the default BrokerAuthentication (configured with `authenticationRef`) and we have TLS enabled using the provided certificate issuer `azure-iot-operations-aio-certificate-issuer`.
+
+```bash
+kubectl get brokerauthentication default -n azure-iot-operations -o yaml
+```
+
+![alt text](docs/assets/broker-auth-default.png)
+
+We can see that by default the authentication method is only SAT (Service Account Token).
+
 
 ### Broker Authentication
 
@@ -37,6 +54,10 @@ BrokerListener and BrokerAuthentication are separate resources, but they're link
 - A BrokerListener can be linked to only one BrokerAuthentication
 - A BrokerAuthentication can be linked to multiple BrokerListeners
 - Each BrokerAuthentication can support multiple authentication methods at once
+
+### Server certificate
+
+With automatic certificate management, you use cert-manager to manage the TLS server certificate. By default, cert-manager is installed alongside Azure IoT Operations Preview in the azure-iot-operations namespace already. 
 
 ## End to end test
 
@@ -127,36 +148,31 @@ openssl x509 -in ca/certs/intermediate_ca.crt -text -noout
 openssl x509 -in foo.crt -text -noout
 ```
 
-Use this information to create file `x509Attributes.toml`.
 
-Create the secret:
+### Step 7. Enable X.509 authentication in the BrokerAuthentication
 
-```bash
-kubectl create secret generic x509-attributes --from-file=x509Attributes.toml -n azure-iot-operations
-```
-
-### Step 7. Check the BrokerListener with TLS and authentication
-
-Check that the default BrokerListener is TLS enabled and authentication is also enabled:
+Get your default BrokerAuthentication configuration that only uses sat:
 
 ```bash
-kubectl get brokerlistener listener -n azure-iot-operations -o yaml
+kubectl get brokerauthentication default -n azure-iot-operations -o yaml > auth-default.yaml
 ```
 
-![alt text](docs/assets/image-2.png)
+![alt text](docs/assets/broker-auth-default.png)
 
 
-### Step 8. Enable X.509 authentication in the BrokerAuthentication
+Enable X.509 client authentication by adding it as one of the authentication methods as part of a BrokerAuthentication resource linked to a TLS-enabled listener. Copy file `auth-default.yaml`to a new file `auth-x509.yaml`. Add a section with X509m parameters:
 
-Check default BrokerAuthentication configuration only with sat:
-
-```bash
-kubectl get brokerauthentication authn -n azure-iot-operations -o yaml
+```yaml
+spec:
+  authenticationMethods:
+    - method: X509
+      x509Settings:
+        trustedClientCaCert: client-ca
+        authorizationAttributes:
+        # ...
 ```
 
-![alt text](docs/assets/image-3.png)
-
-Apply new configuration to add X.509 authentication:
+And apply it:
 
 ```bash
 kubectl apply -f auth-x509.yaml
@@ -165,18 +181,19 @@ kubectl apply -f auth-x509.yaml
 Check again the new config:
 
 ```bash
-kubectl get brokerauthentication authn -n azure-iot-operations -o yaml
+kubectl get brokerauthentication default -n azure-iot-operations -o yaml
 ```
 
-![alt text](docs/assets/image-4.png)
+![alt text](docs/assets/new-auth.png)
+
 
 ### Step 9. Create a CA file for the client
 
-It needs both the client CA chain (root + intermediate) and also the server CA root.
+It needs both the client CA chain (root + intermediate) used for authentication and also the server CA root used for TLS.
 
 ```bash
 # Get server root CA
-kubectl get configmap aio-ca-trust-bundle-test-only -n azure-iot-operations -o jsonpath='{.data.ca\.crt}' > server_ca.crt
+kubectl get configmap azure-iot-operations-aio-ca-trust-bundle -n azure-iot-operations -o jsonpath='{.data.ca\.crt}' > server_ca.crt
 
 # Create chain PEM
 cat ca/certs/root_ca.crt ca/certs/intermediate_ca.crt server_ca.crt > chain_server_client.pem
@@ -187,7 +204,7 @@ cat ca/certs/root_ca.crt ca/certs/intermediate_ca.crt server_ca.crt > chain_serv
 To test from within the cluster let's deploy a sample client pod:
 
 ```bash
-kubectl apply -f client.yaml
+kubectl apply -f mqtt-client.yaml
 ```
 
 Copy certificate and key files into pod:
@@ -207,10 +224,10 @@ kubectl exec --stdin --tty mqtt-client -n azure-iot-operations -- sh
 And run this comand to publish messages:
 
 ```bash
-mosquitto_pub -q 1 -t hello -d -V mqttv5 -m world2 -i thermostat -h aio-mq-dmqtt-frontend -p 8883 --cert /tmp/foo.crt --key /tmp/foo.key --cafile /tmp/chain_server_client.pem
+mosquitto_pub -q 1 -t hello -d -V mqttv5 -m world2 -i thermostat -h aio-broker -p 18883 --cert /tmp/foo.crt --key /tmp/foo.key --cafile /tmp/chain_server_client.pem
 ```
 
-![alt text](docs/assets/image-6.png)
+![alt text](docs/assets/pub.png)
 
 Open another shell into the pod:
 
@@ -221,13 +238,16 @@ kubectl exec --stdin --tty mqtt-client -n azure-iot-operations -- sh
 And run the `mosquitto_sub` tool to check the published messages:
 
 ```bash
-mosquitto_sub -t hello -d -V mqttv5 -h aio-mq-dmqtt-frontend -p 8883 --cert /tmp/foo.crt --key /tmp/foo.key --cafile /tmp/chain_server_client.pem
+mosquitto_sub -t hello -d -V mqttv5 -h aio-broker -p 18883 --cert /tmp/foo.crt --key /tmp/foo.key --cafile /tmp/chain_server_client.pem
 ```
 
-You can also use the `mqttui` tool to check the published messages:
+![alt text](docs/assets/sub.png)
+
+
+MQTTUI doesn't not work for now to check the published messages:
 
 ```bash
-mqttui -b mqtts://aio-mq-dmqtt-frontend:8883 -u '$sat' --password $(cat /var/run/secrets/tokens/mq-sat) --insecure
+mqttui -b mqtts://aio-broker:18883 -u '$sat' --password $(cat /var/run/secrets/tokens/broker-sat) --insecure
 ```
 
 ![alt text](docs/assets/image-5.png)
@@ -235,41 +255,39 @@ mqttui -b mqtts://aio-mq-dmqtt-frontend:8883 -u '$sat' --password $(cat /var/run
 
 ### Step 11. Expose service to the outside
 
+The default the broker `aio-broker` only has an internal Cluster IP.
+
 ```bash
 k get svc -n azure-iot-operations
 ```
 
-![alt text](docs/assets/image-7.png)
+![alt text](docs/assets/internal.png)
 
-Change the service from ClusterIp to LoadBalancer:
+To expose it you need to change the listener replacing the service type from ClusterIp to LoadBalancer:
 
 ```bash
-kubectl patch brokerlistener listener -n azure-iot-operations --type='json' -p='[{"op": "replace", "path": "/spec/serviceType", "value": "loadBalancer"}]'
+kubectl patch brokerlistener default -n azure-iot-operations --type='json' -p='[{"op": "replace", "path": "/spec/serviceType", "value": "loadBalancer"}]'
 ```
 
 Wait for the service to be updated:
 
 ```bash
-kubectl get service aio-mq-dmqtt-frontend -n azure-iot-operations
+kubectl get service aio-broker -n azure-iot-operations
 ```
 
-![alt text](docs/assets/image-8.png)
+![alt text](docs/assets/external.png)
+![alt text](image.png)
 
 ### Step 12. Test from outside
 
 Publish a message from outside the cluster:
 
 ```bash
-mosquitto_pub -q 1 -t hello -d -V mqttv5 -m "world3 from outside" -i thermostat -h 172.30.226.19 -p 8883 --cert foo.crt --key foo.key --cafile chain_server_client.pem
+mosquitto_pub -q 1 -t hello -d -V mqttv5 -m "world3 from outside" -i thermostat -h 10.0.0.4 -p 18883 --cert foo.crt --key foo.key --cafile chain_server_client.pem
 ```
 
-![alt text](docs/assets/image-9.png)
-
-Check with MQTTUI.
-
-![alt text](docs/assets/image-10.png)
-
 You can also use Port forwarding like describe [here](https://learn.microsoft.com/en-us/azure/iot-operations/manage-mqtt-connectivity/howto-test-connection#use-port-forwarding).
+
 
 ### Step 13. Test with a nodejs sample client
 
