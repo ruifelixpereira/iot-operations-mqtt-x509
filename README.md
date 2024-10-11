@@ -276,7 +276,7 @@ kubectl get service aio-broker -n azure-iot-operations
 ```
 
 ![alt text](docs/assets/external.png)
-![alt text](image.png)
+
 
 ### Step 12. Test from outside
 
